@@ -1,20 +1,23 @@
 const express = require('express');
 const PORT = process.env.PORT || 5000
 const cors = require("cors")
+const jwt = require('jsonwebtoken')
 const app = express()
+require('dotenv').config();
 
 app.use(cors())
 app.use(express.json())
 
 const { MongoClient, ServerApiVersion } = require('mongodb');
 const uri = "mongodb+srv://doctor-portal:CeWZIq00sfJdeK5V@cluster0.eurlfla.mongodb.net/?retryWrites=true&w=majority";
-
+console.log(uri)
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
 async function run() {
     try {
         const appoinmentOptions = client.db('doctors-portal').collection('appoinmentoption')
         const bookingscollections = client.db('doctors-portal').collection('bookingscollections')
+        const usercollections = client.db('doctors-portal').collection('user')
         app.get('/appoinmentoption', async (req, res) => {
             const date = req.query.date
             console.log(date)
@@ -27,10 +30,18 @@ async function run() {
                 const bookslot = optionbooked.map(book => book.slot)
                 const remainingslots = op.slots.filter(slot => !bookslot.includes(slot))
                 op.slots = remainingslots
-                
+
             })
             res.send(option)
         })
+
+        app.get('/bookings', async (req, res) => {
+            const email = req.query.email
+            const query = { email: email }
+            const bookings = await bookingscollections.find(query).toArray()
+            res.send(bookings)
+        })
+
         app.post('/bookings', async (req, res) => {
             const id = req.body
             console.log(id)
@@ -40,13 +51,20 @@ async function run() {
                 treatment: id.treatment
             }
             const alreadyBooked = await bookingscollections.find(query).toArray()
-            if(alreadyBooked.length) {
+            if (alreadyBooked.length) {
                 const message = `You already Booked This ${id.appointmentDate}`
-                return res.send({acknowledge: false, message})
+                return res.send({ acknowledge: false, message })
             }
             const result = await bookingscollections.insertOne(id)
             res.send(result)
         })
+
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            console.log(user);
+            const result = await usercollections.insertOne(user);
+            res.send(result);
+        });
 
     }
     finally {
